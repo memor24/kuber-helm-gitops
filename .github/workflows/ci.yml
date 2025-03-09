@@ -1,0 +1,73 @@
+name: CI for updating the app image; CD on clusters is managed by argoCD ApplitionSet
+
+on:
+  pull_request: { branches: ["*"] }
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/**'      # triggers the workflow when the app folder code is updated
+
+permissions:          # github actions permissions to access the repository and the registry 
+  contents: read      # ${{ secrets.KUBECONFIG }} # and the k8s cluster if needed
+  packages: write
+
+env:
+  Registry: ghcr.io
+  ImageRepo: memor24/khg-imagesfolder
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+
+      - name: login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.Registry }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+  # OR  run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u <dockerhub-user> --password-stdin
+
+      - name: build and push Docker image
+        run: |
+          docker build -t my-app:latest . 
+          docker tag my-app:latest ${{ env.Registry }}/${{ env.ImageRepo }}/my-app:${{ github.sha }} 
+          docker push ${{ env.Registry }}/${{ env.ImageRepo }}/my-app:${{ github.sha }}
+
+# manual step
+#     kind create cluster --name argocd-cluster --config ./argocd-cluster-config.yml
+#     kind create cluster --name dev-cluster --config ./dev-cluster-config.yml
+#     kind create cluster --name prod-cluster --config ./prod-cluster-config.yml
+
+
+      - name : create regcred kubernetes secret for kubectl acccess to ghcr
+        run: |
+          kubectl create secret docker-registry regcred \
+          --docker-server=ghcr.io \
+          --docker-username=${{ github.actor }} \
+          --docker-password=${{ secrets.GITHUB_TOKEN }} \
+          --docker-email=${{ github.actor }}@sth.co \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: update the Helm chart with the new image tag
+        run: |
+          helm upgrade --install my-app ./helm-chart \
+          --set image.repository=${{ env.Registry }}/${{ env.ImageRepo }}/my-app \
+          --set image.tag=${{ github.sha }} \
+          --set image.pullSecrets[0].name=regcred
+
+      - name: install argoCD
+        run: |
+          kubectl create namespace argocd --cluster argocd-cluster
+          kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+          kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+          kubectl create secret generic argocd-secret --from-literal=server-addr=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):443 -n argocd
+
+# manual step to initiate argoCD
+# kubectl port-forward svc/argocd-server -n argocd 8080:443
+# kubectl apply -f application-set.yml
+      
+# argoCD will look for any changes in git repo app/** e.g. new image tag
