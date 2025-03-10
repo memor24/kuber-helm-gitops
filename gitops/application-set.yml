@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: my-app
+spec:
+  generators:
+    - list:
+        elements:
+          - cluster: dev-cluster
+            namespace: dev
+            values:
+              replicaCount: 1
+              image:
+                tag: "1.0.0-dev"
+          - cluster: prod-cluster
+            namespace: prod
+            values:
+              replicaCount: 3
+              image:
+                tag: "1.0.0-prod"
+  template:
+    metadata:
+      name: '{{cluster}}-my-app'
+    spec:
+      project: default
+      source:
+        repoURL: 'https://github.com/memor24/kuber-helm-gitops.git'
+        targetRevision: main
+        path: my-app
+        helm:
+          valueFiles:
+            - values.yml
+          values: |
+            replicaCount: {{values.replicaCount}}
+            image:
+              tag: {{values.image.tag}}
+      destination:
+        server: 'https://kubernetes.default.svc'
+        namespace: '{{namespace}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
