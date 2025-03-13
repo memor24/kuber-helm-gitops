@@ -7,13 +7,13 @@ spec:
     - list:
         elements:
           - cluster: dev-cluster
-            namespace: dev
+            namespace: dev-ns
             values:
               replicaCount: 1
               image:
                 tag: "1.0.0-dev"
           - cluster: prod-cluster
-            namespace: prod
+            namespace: prod-ns
             values:
               replicaCount: 3
               image:

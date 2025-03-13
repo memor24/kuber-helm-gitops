@@ -38,11 +38,32 @@ jobs:
           docker tag my-app:latest ${{ env.Registry }}/${{ env.ImageRepo }}/my-app:${{ github.sha }} 
           docker push ${{ env.Registry }}/${{ env.ImageRepo }}/my-app:${{ github.sha }}
 
-# manual step to setup the clusters
-#     kind create cluster --name argocd-cluster --config ./argocd-cluster-config.yml
-#     kind create cluster --name dev-cluster --config ./dev-cluster-config.yml
-#     kind create cluster --name prod-cluster --config ./prod-cluster-config.yml
+      - name: install KinD
+        run: |
+            curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+            chmod +x ./kind
+            sudo mv ./kind /usr/local/bin/kind
 
+  # step to setup the clusters (or basic setp all namespaces in onecluster)
+      - name: setup the clusters and wait till all nodes are running
+        run: |
+          kind create cluster --name one-cluster --config ./cluster-config.yml
+            kubectl wait --for=condition=Ready nodes --all --timeout=180s
+
+      - name: config kubectl to use the KinD cluster
+        run: |
+          kubectl cluster-info --context kind-my-cluster
+          kubectl config use-context kind-my-cluster
+          kubectl create namespace dev-ns 
+          kubectl create rolebinding default-admin \
+          --clusterrole=admin \
+          --serviceaccount=dev-ns:default \
+          --namespace=dev-ns
+          kubectl create namespace prod-ns 
+          kubectl create rolebinding default-admin \
+          --clusterrole=admin \
+          --serviceaccount=prod-ns:default \
+          --namespace=prod-ns
 
       - name : create regcred kubernetes secret for kubectl acccess to ghcr
         run: |
@@ -53,9 +74,17 @@ jobs:
           --docker-email=${{ github.actor }}@sth.co \
           --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: install Helm
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+
       - name: update the Helm chart with the new image tag
         run: |
-          helm upgrade --install my-app ./helm-chart \
+          helm upgrade --install my-app ./helm-chart namespace dev-ns\
+          --set image.repository=${{ env.Registry }}/${{ env.ImageRepo }}/my-app \
+          --set image.tag=${{ github.sha }} \
+          --set image.pullSecrets[0].name=regcred
+          helm upgrade --install my-app ./helm-chart namespace prod-ns\
           --set image.repository=${{ env.Registry }}/${{ env.ImageRepo }}/my-app \
           --set image.tag=${{ github.sha }} \
           --set image.pullSecrets[0].name=regcred
@@ -67,7 +96,7 @@ jobs:
           kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
           kubectl create secret generic argocd-secret --from-literal=server-addr=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):443 -n argocd
 
-# step to initiate argoCD in dev
+# step to initiate argoCD in the cluster in a test environment like this
 # kubectl port-forward svc/argocd-server -n argocd 8080:443
 # kubectl apply -f application-set.yml
       
