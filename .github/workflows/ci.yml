@@ -109,10 +109,6 @@ jobs:
           curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 
       - name: update the Helm chart with the new image tag in each environment (namespace here)
-        env: |
-          REGISTRY: ${{ env.Registry }}
-          IMAGE_REPO: ${{ env.ImageRepo }}
-          GITHUB_SHA: ${{ github.sha }}
         run: |
           helm upgrade --install my-app ./app/helm-chart --namespace dev-ns\
           --set image.repository=$REGISTRY/$IMAGE_REPO/my-app \
@@ -122,6 +118,10 @@ jobs:
           --set image.repository=$REGISTRY/$IMAGE_REPO/my-app \
           --set image.tag=$GITHUB_SHA \
           --set image.pullSecrets[0].name=regcred
+        env: |
+          REGISTRY: ${{ env.Registry }}
+          IMAGE_REPO: ${{ env.ImageRepo }}
+          GITHUB_SHA: ${{ github.sha }}
 
       - name: install argoCD
         run: |
