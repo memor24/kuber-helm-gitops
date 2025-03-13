@@ -109,21 +109,21 @@ jobs:
           curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 
       - name: export variables to be used by helm
-        run: | 
+        run: |
           export REGISTRY=$REGISTRY
           export IMAGE_REPO=$IMAGE_REPO
           export GITHUB_SHA=$GITHUB_SHA
 
       - name: update the Helm chart with the new image tag in dev environment/namespace
         run: |
-          helm upgrade --install my-app ./app/helm-chart --namespace dev-ns\
+          helm upgrade --install my-app /app/helm-chart --namespace dev-ns\
           --set image.repository="$REGISTRY/$IMAGE_REPO/my-app" \
           --set image.tag="$GITHUB_SHA" \
           --set image.pullSecrets[0].name=regcred
         
       - name: update the Helm chart with the new image tag in prod environment/namespace
         run: |
-          helm upgrade --install my-app ./app/helm-chart --namespace prod-ns\
+          helm upgrade --install my-app /app/helm-chart --namespace prod-ns\
           --set image.repository="$REGISTRY/$IMAGE_REPO/my-app" \
           --set image.tag="$GITHUB_SHA" \
           --set image.pullSecrets[0].name=regcred
