@@ -108,20 +108,20 @@ jobs:
         run: |
           curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 
-      - name: update the Helm chart with the new image tag
+      - name: update the Helm chart with the new image tag in each environment (namespace here)
         run: |
-          helm upgrade --install my-app ./helm-chart --namespace dev-ns\
+          helm upgrade --install my-app ./app/helm-chart --namespace dev-ns\
           --set image.repository=${{ env.Registry }}/${{ env.ImageRepo }}/my-app \
           --set image.tag=${{ github.sha }} \
           --set image.pullSecrets[0].name=regcred
-          helm upgrade --install my-app ./helm-chart --namespace prod-ns\
+          helm upgrade --install my-app ./app/helm-chart --namespace prod-ns\
           --set image.repository=${{ env.Registry }}/${{ env.ImageRepo }}/my-app \
           --set image.tag=${{ github.sha }} \
           --set image.pullSecrets[0].name=regcred
 
       - name: install argoCD
         run: |
-          kubectl create namespace argocd --cluster argocd-cluster
+          kubectl create namespace argocd --cluster my-cluster
           kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
           kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
           kubectl create secret generic argocd-secret --from-literal=server-addr=$(kubectl get svc argocd-server -n argocd -o jsonpath='{.status.loadBalancer.ingress[0].ip}'):443 -n argocd
