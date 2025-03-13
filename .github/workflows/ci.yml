@@ -111,22 +111,24 @@ jobs:
       - name: update the Helm chart with the new image tag in dev environment/namespace
         run: |
           helm upgrade --install my-app ./app/helm-chart --namespace dev-ns\
-          --set image.repository="ghcr.io/$IMAGE_REPO/my-app" \
-          --set image.tag=$GITHUB_SHA \
+         --set image.repository="$REGISTRY/$IMAGE_REPO/my-app" \
+          --set image.tag="$GITHUB_SHA" \
           --set image.pullSecrets[0].name=regcred
         env:
-          IMAGE_REPO: ${{ env.ImageRepo }}
-          GITHUB_SHA: ${{ github.sha }}
+          export REGISTRY=${{ env.Registry }}
+          export IMAGE_REPO=${{ env.ImageRepo }}
+          export GITHUB_SHA=${{ github.sha }}
         
       - name: update the Helm chart with the new image tag in prod environment/namespace
         run: |
           helm upgrade --install my-app ./app/helm-chart --namespace prod-ns\
-          --set image.repository=ghcr.io/$IMAGE_REPO/my-app \
-          --set image.tag=$GITHUB_SHA \
+          --set image.repository="$REGISTRY/$IMAGE_REPO/my-app" \
+          --set image.tag="$GITHUB_SHA" \
           --set image.pullSecrets[0].name=regcred
         env:
-          IMAGE_REPO: ${{ env.ImageRepo }}
-          GITHUB_SHA: ${{ github.sha }}
+          export REGISTRY=${{ env.Registry }}
+          export IMAGE_REPO=${{ env.ImageRepo }}
+          export GITHUB_SHA=${{ github.sha }}
 
       - name: install argoCD
         run: |
