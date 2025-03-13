@@ -15,8 +15,6 @@ permissions:          # github actions permissions to access the repository and 
 env:                 # global variables for github actions use
   Registry: ghcr.io                # to be used as gha variables
   ImageRepo: memor24/khg-images     #
-  IMAGE_REPO: ${{ env.ImageRepo }} # to be used as bash variables
-  GITHUB_SHA: ${{ github.sha }}     #
 
 jobs:
   build-and-deploy:
@@ -112,20 +110,21 @@ jobs:
 
       - name: update the Helm chart with the new image tag in dev environment/namespace
         run: |
+          IMAGE_REPO: ${{ env.ImageRepo }} \
+          GITHUB_SHA: ${{ github.sha }} \
           helm upgrade --install my-app ./app/helm-chart --namespace dev-ns\
           --set image.repository="ghcr.io/$IMAGE_REPO/my-app" \
           --set image.tag=$GITHUB_SHA \
           --set image.pullSecrets[0].name=regcred          
-
+        
       - name: update the Helm chart with the new image tag in prod environment/namespace
         run: |
+          IMAGE_REPO: ${{ env.ImageRepo }} \
+          GITHUB_SHA: ${{ github.sha }} \
           helm upgrade --install my-app ./app/helm-chart --namespace prod-ns\
           --set image.repository=ghcr.io/$IMAGE_REPO/my-app \
           --set image.tag=$GITHUB_SHA \
           --set image.pullSecrets[0].name=regcred
-        env: |
-          IMAGE_REPO: ${{ env.ImageRepo }} 
-          GITHUB_SHA: ${{ github.sha }}
 
       - name: install argoCD
         run: |
