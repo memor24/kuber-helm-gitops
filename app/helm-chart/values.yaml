@@ -2,7 +2,7 @@ image:
   repository: ""
   pullPolicy: "Always"  # "IfNotPresent" in production
   tag: ""               # overrides the image from cicd.yml
-PullSecrets: []         # secret to pull from private repo (ghcr) using regcred
+pullSecrets: []         # secret to pull from private repo (ghcr) using regcred
 
 service:
   type: ClusterIP
