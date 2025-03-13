@@ -12,7 +12,7 @@ permissions:          # github actions permissions to access the repository and 
   contents: read      # and the k8s cluster if needed # ${{ secrets.KUBECONFIG }} 
   packages: write
 
-env:
+env:                 # global variables for github actions use
   Registry: ghcr.io
   ImageRepo: memor24/khg-images
 
@@ -109,14 +109,18 @@ jobs:
           curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 
       - name: update the Helm chart with the new image tag in each environment (namespace here)
+        env: |
+          REGISTRY: ${{ env.Registry }}
+          IMAGE_REPO: ${{ env.ImageRepo }}
+          GITHUB_SHA: ${{ github.sha }}
         run: |
           helm upgrade --install my-app ./app/helm-chart --namespace dev-ns\
-          --set image.repository=${{ env.Registry }}/${{ env.ImageRepo }}/my-app \
-          --set image.tag=${{ github.sha }} \
+          --set image.repository=$REGISTRY/$IMAGE_REPO/my-app \
+          --set image.tag=$GITHUB_SHA \
           --set image.pullSecrets[0].name=regcred
           helm upgrade --install my-app ./app/helm-chart --namespace prod-ns\
-          --set image.repository=${{ env.Registry }}/${{ env.ImageRepo }}/my-app \
-          --set image.tag=${{ github.sha }} \
+          --set image.repository=$REGISTRY/$IMAGE_REPO/my-app \
+          --set image.tag=$GITHUB_SHA \
           --set image.pullSecrets[0].name=regcred
 
       - name: install argoCD
