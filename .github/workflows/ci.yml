@@ -47,7 +47,7 @@ jobs:
   # step to setup the clusters (or basic setp all namespaces in onecluster)
       - name: setup the clusters and wait till all nodes are running
         run: |
-          kind create cluster --name one-cluster --config ./cluster-config.yml
+          kind create cluster --name one-cluster --config ./gitops/cluster-config.yml
             kubectl wait --for=condition=Ready nodes --all --timeout=180s
 
       - name: config kubectl to use the KinD cluster
