@@ -54,16 +54,46 @@ jobs:
         run: |
           kubectl cluster-info --context kind-my-cluster
           kubectl config use-context kind-my-cluster
-          kubectl create namespace dev-ns 
-          kubectl create rolebinding default-admin \
-          --clusterrole=admin \
-          --serviceaccount=dev-ns:default \
-          --namespace=dev-ns
-          kubectl create namespace prod-ns 
-          kubectl create rolebinding default-admin \
-          --clusterrole=admin \
-          --serviceaccount=prod-ns:default \
-          --namespace=prod-ns
+          kubectl apply -f - <<EOF
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: dev-ns
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          metadata:
+            name: admin
+            namespace: dev-ns
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: admin
+          subjects:
+          - kind: ServiceAccount
+            name: default
+            namespace: dev-ns
+          EOF
+          kubectl apply -f - <<EOF
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: prod-ns
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          metadata:
+            name: admin
+            namespace: prod-ns
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: admin
+          subjects:
+          - kind: ServiceAccount
+            name: default
+            namespace: prod-ns
+          EOF
 
       - name : create regcred kubernetes secret for kubectl acccess to ghcr
         run: |
@@ -80,11 +110,11 @@ jobs:
 
       - name: update the Helm chart with the new image tag
         run: |
-          helm upgrade --install my-app ./helm-chart namespace dev-ns\
+          helm upgrade --install my-app ./helm-chart --namespace dev-ns\
           --set image.repository=${{ env.Registry }}/${{ env.ImageRepo }}/my-app \
           --set image.tag=${{ github.sha }} \
           --set image.pullSecrets[0].name=regcred
-          helm upgrade --install my-app ./helm-chart namespace prod-ns\
+          helm upgrade --install my-app ./helm-chart --namespace prod-ns\
           --set image.repository=${{ env.Registry }}/${{ env.ImageRepo }}/my-app \
           --set image.tag=${{ github.sha }} \
           --set image.pullSecrets[0].name=regcred
